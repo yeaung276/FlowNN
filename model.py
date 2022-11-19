@@ -3,7 +3,13 @@ from torch import nn
 from torchvision import models
 
 model_map = {
-    'densenet121': lambda: models.densenet121(pretrained=True)
+    'densenet121': lambda: models.densenet121(pretrained=True),
+    'resnet18': lambda: models.resnet18(pretrained=True)
+}
+
+last_layer_map = {
+    'densenet121': 'classifier',
+    'resnet18': 'fc'
 }
 
 def load_model_from_path(state_dict_path: str, device: str):
@@ -12,7 +18,7 @@ def load_model_from_path(state_dict_path: str, device: str):
     classifier = load_classifier(model_dict['classifier'])
     pretrained_model = get_pretrained_model(model_dict['pretrained_modal'])
 
-    pretrained_model.classifier = classifier
+    setattr(pretrained_model, last_layer_map[model_dict['pretrained_modal']],classifier)
 
     pretrained_model.load_state_dict(model_dict['state'])
     pretrained_model.eval()
@@ -29,13 +35,14 @@ def load_classifier(classifier_dict):
 
 def get_untrained_model(model_name: str, hidden_layer: int, device: str):
     base_model = get_pretrained_model(model_name)
+    last_layer = getattr(base_model, last_layer_map[model_name])
     classifier = nn.Sequential(
-        nn.Linear(1024, hidden_layer),
+        nn.Linear(last_layer.in_features, hidden_layer),
         nn.ReLU(),
         nn.Dropout(0.2),
         nn.Linear(hidden_layer, 102),
         nn.LogSoftmax(dim=1)
     )
-    base_model.classifier = classifier
+    setattr(base_model, last_layer_map[model_name], classifier)
     return base_model.to(device), classifier.to(device)
     
