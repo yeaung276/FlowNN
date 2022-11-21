@@ -36,6 +36,7 @@ def main():
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
+            print('.')
         else:
             model.eval()
             accuracy = 0
